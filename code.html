@@ -1,0 +1,92 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1.0"/>
+  <title>Voice Translator</title>
+  <style>
+    body { font-family: sans-serif; padding: 2rem; max-width: 600px; margin: auto; }
+    button { padding: 10px 20px; font-size: 16px; }
+    select, textarea { width: 100%; margin-top: 10px; padding: 10px; font-size: 16px; }
+  </style>
+</head>
+<body>
+  <h2>🎙️ Voice Translator</h2>
+  <p>Select language and press start to speak.</p>
+
+  <label for="sourceLang">From:</label>
+  <select id="sourceLang">
+    <option value="en">English</option>
+    <option value="ta">Tamil</option>
+    <option value="te">Telugu</option>
+    <option value="ml">Malayalam</option>
+    <option value="ko">Korean</option>
+    <option value="zh-CN">Chinese (Simplified)</option>
+    <option value="ar">Arabic</option>
+    <option value="es">Spanish</option>
+    <option value="fr">French</option>
+  </select>
+
+  <label for="targetLang">To:</label>
+  <select id="targetLang">
+    <option value="en">English</option>
+    <option value="ta">Tamil</option>
+    <option value="te">Telugu</option>
+    <option value="ml">Malayalam</option>
+    <option value="ko">Korean</option>
+    <option value="zh-CN">Chinese (Simplified)</option>
+    <option value="ar">Arabic</option>
+    <option value="es">Spanish</option>
+    <option value="fr">French</option>
+  </select>
+
+  <br><br>
+  <button onclick="startVoiceInput()">🎤 Start Speaking</button>
+
+  <h3>Original:</h3>
+  <textarea id="originalText" rows="4"></textarea>
+
+  <h3>Translation:</h3>
+  <textarea id="translatedText" rows="4"></textarea>
+
+  <script>
+    function startVoiceInput() {
+      const recognition = new (window.SpeechRecognition || window.webkitSpeechRecognition)();
+      recognition.lang = document.getElementById("sourceLang").value;
+      recognition.interimResults = false;
+      recognition.maxAlternatives = 1;
+
+      recognition.onresult = async function(event) {
+        const spokenText = event.results[0][0].transcript;
+        document.getElementById("originalText").value = spokenText;
+        const translated = await translateText(spokenText);
+        document.getElementById("translatedText").value = translated;
+        speakText(translated);
+      };
+
+      recognition.onerror = function(event) {
+        alert("Error: " + event.error);
+      };
+
+      recognition.start();
+    }
+
+    async function translateText(text) {
+      const source = document.getElementById("sourceLang").value;
+      const target = document.getElementById("targetLang").value;
+
+      const url = `https://api.mymemory.translated.net/get?q=${encodeURIComponent(text)}&langpair=${source}|${target}`;
+      const response = await fetch(url);
+      const data = await response.json();
+      return data.responseData.translatedText;
+    }
+
+    function speakText(text) {
+      const targetLang = document.getElementById("targetLang").value;
+      const utterance = new SpeechSynthesisUtterance(text);
+      utterance.lang = targetLang;
+      speechSynthesis.speak(utterance);
+    }
+  </script>
+</body>
+</html>
