@@ -3,18 +3,17 @@
 <head>
   <meta charset="UTF-8" />
   <meta name="viewport" content="width=device-width, initial-scale=1.0"/>
-  <title>Voice Translator</title>
+  <title>Voice Translator & Assistant</title>
   <style>
-    body { font-family: sans-serif; padding: 2rem; max-width: 600px; margin: auto; }
-    button { padding: 10px 20px; font-size: 16px; }
+    body { font-family: sans-serif; padding: 2rem; max-width: 700px; margin: auto; }
+    button { padding: 10px 18px; font-size: 16px; margin: 5px; }
     select, textarea { width: 100%; margin-top: 10px; padding: 10px; font-size: 16px; }
   </style>
 </head>
 <body>
-  <h2>🎙️ Voice Translator</h2>
-  <p>Select language and press start to speak.</p>
+  <h2>🎙️ Voice Translator & Assistant</h2>
+  <p>Say things like <b>"Translate hello to Tamil"</b>, <b>"What's the weather in Chennai"</b>, or <b>"Give me news"</b>.</p>
 
-  <!--language selector-->
   <label for="sourceLang">From:</label>
   <select id="sourceLang">
     <option value="en">English</option>
@@ -44,95 +43,126 @@
   <br><br>
   <button onclick="startVoiceInput()">🎤 Start Speaking</button>
 
-<!--Display Areas-->
   <h3>Original:</h3>
   <textarea id="originalText" rows="4"></textarea>
 
-  <h3>Translation:</h3>
+  <h3>Response:</h3>
   <textarea id="translatedText" rows="4"></textarea>
 
-  <!--start of speech-->
-  <script>
-    function startVoiceInput() {
-      const recognition = new (window.SpeechRecognition || window.webkitSpeechRecognition)();
-      recognition.lang = document.getElementById("sourceLang").value;
-      recognition.interimResults = false;
-      recognition.maxAlternatives = 1;
+<script>
+// ✅ Language maps
+const recognitionMap = {
+  "en": "en-IN", "ta": "ta-IN", "te": "te-IN", "ml": "ml-IN",
+  "ko": "ko-KR", "zh-CN": "zh-CN", "ar": "ar-SA",
+  "es": "es-ES", "fr": "fr-FR"
+};
+const ttsMap = {
+  "en": "en-US", "ta": "ta-IN", "te": "te-IN", "ml": "ml-IN",
+  "ko": "ko-KR", "zh-CN": "zh-CN", "ar": "ar-SA",
+  "es": "es-ES", "fr": "fr-FR"
+};
 
-      recognition.onresult = async function(event) {
-        const spokenText = event.results[0][0].transcript;
-        document.getElementById("originalText").value = spokenText;
-        
-          // Call command handler
+// 🎤 Start voice input
+function startVoiceInput() {
+  const sourceLang = document.getElementById("sourceLang").value;
+  const recogLang = recognitionMap[sourceLang] || sourceLang;
+
+  const recognition = new (window.SpeechRecognition || window.webkitSpeechRecognition)();
+  recognition.lang = recogLang;
+  recognition.interimResults = false;
+  recognition.maxAlternatives = 1;
+
+  recognition.onresult = async function(event) {
+    const spokenText = event.results[0][0].transcript;
+    document.getElementById("originalText").value = spokenText;
     await handleCommand(spokenText);
   };
-      recognition.onerror = function(event) {
-        alert("Error: " + event.error);
-      };
 
-      recognition.start();
-    }
+  recognition.onerror = (e) => alert("Speech error: " + e.error);
+  recognition.start();
+}
 
-  // 🧠 Command Handler
+// 🧠 Command Handler
 async function handleCommand(text) {
-  text = text.toLowerCase();
+  const lower = text.toLowerCase();
 
-  if (text.startsWith("translate")) {
-    const translated = await translateText(text.replace("translate", "").trim());
-    document.getElementById("translatedText").value = translated;
-    speakText(translated);
-  } 
-  else if (text.includes("weather")) {
-    // Example: "what's the weather in chennai"
-    const city = text.split("in")[1]?.trim() || "Chennai";
+  if (lower.startsWith("translate")) {
+    const clean = lower.replace("translate", "").trim();
+    const translated = await translateText(clean);
+    showResponse(translated);
+  }
+  else if (lower.includes("weather")) {
+    const match = text.match(/weather (?:in)?\s*(.*)/i);
+    const city = match && match[1] ? match[1] : "Chennai";
     const weatherInfo = await getWeather(city);
-    document.getElementById("translatedText").value = weatherInfo;
-    speakText(weatherInfo);
-  } 
+    showResponse(weatherInfo);
+  }
+  else if (lower.includes("news")) {
+    const news = await getNews();
+    showResponse(news);
+  }
   else {
-    const fallback = "Sorry, I didn't understand the command.";
-    document.getElementById("translatedText").value = fallback;
-    speakText(fallback);
+    showResponse("Sorry, I didn't understand the command.");
   }
 }
 
-  //Translate Text-->
-    async function translateText(text) {
-      const source = document.getElementById("sourceLang").value;
-      const target = document.getElementById("targetLang").value;
-
-      const url = `https://api.mymemory.translated.net/get?q=${encodeURIComponent(text)}&langpair=${source}|${target}`;
-      const response = await fetch(url);
-      const data = await response.json();
-      return data.responseData.translatedText;
-    }
-    // 🌦️ Weather API
-async function getWeather(city) {
-  const apiKey = "YOUR_API_KEY"; // Replace with your OpenWeather API key
-  const url = `https://api.openweathermap.org/data/2.5/weather?q=${city}&units=metric&appid=${apiKey}`;
+// 🌐 Translate
+async function translateText(text) {
+  const source = document.getElementById("sourceLang").value;
+  const target = document.getElementById("targetLang").value;
 
   try {
+    const url = `https://api.mymemory.translated.net/get?q=${encodeURIComponent(text)}&langpair=${source}|${target}`;
     const response = await fetch(url);
     const data = await response.json();
-
-    if (data.cod !== 200) {
-      return `Couldn't fetch weather for ${city}`;
-    }
-
-    const temp = data.main.temp;
-    const condition = data.weather[0].description;
-    return `Weather in ${city}: ${temp}°C, ${condition}`;
-  } catch (error) {
-    return "Error fetching weather data.";
+    return data.responseData.translatedText || "Translation failed.";
+  } catch (e) {
+    console.error("Translation error:", e);
+    return "Error in translation.";
   }
 }
-//speak text-->
-    function speakText(text) {
-      const targetLang = document.getElementById("targetLang").value;
-      const utterance = new SpeechSynthesisUtterance(text);
-      utterance.lang = targetLang;
-      speechSynthesis.speak(utterance);
-    }
-  </script>
+
+// 🌦 Weather API
+async function getWeather(city) {
+  const apiKey = "YOUR_OPENWEATHER_API_KEY"; // 🔑 add your API key
+  try {
+    const url = `https://api.openweathermap.org/data/2.5/weather?q=${encodeURIComponent(city)}&units=metric&appid=${apiKey}`;
+    const response = await fetch(url);
+    const data = await response.json();
+    if (data.cod !== 200) return `Couldn't fetch weather for ${city}`;
+    return `Weather in ${city}: ${data.main.temp}°C, ${data.weather[0].description}`;
+  } catch (e) {
+    return "Error fetching weather.";
+  }
+}
+
+// 📰 News API
+async function getNews() {
+  const apiKey = "YOUR_NEWSAPI_KEY"; // 🔑 add your NewsAPI key
+  try {
+    const url = `https://newsapi.org/v2/top-headlines?country=in&pageSize=3&apiKey=${apiKey}`;
+    const response = await fetch(url);
+    const data = await response.json();
+    if (data.status !== "ok") return "Couldn't fetch news.";
+    return data.articles.map((a,i) => `${i+1}. ${a.title}`).join("\n");
+  } catch (e) {
+    console.error("News error:", e);
+    return "Error fetching news.";
+  }
+}
+
+// 🔊 Speak + Display
+function showResponse(text) {
+  document.getElementById("translatedText").value = text;
+  speakText(text);
+}
+
+function speakText(text) {
+  const targetLang = document.getElementById("targetLang").value;
+  const utter = new SpeechSynthesisUtterance(text);
+  utter.lang = ttsMap[targetLang] || targetLang;
+  speechSynthesis.speak(utter);
+}
+</script>
 </body>
 </html>
