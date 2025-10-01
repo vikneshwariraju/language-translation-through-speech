@@ -14,6 +14,7 @@
   <h2>🎙️ Voice Translator</h2>
   <p>Select language and press start to speak.</p>
 
+  <!--language selector-->
   <label for="sourceLang">From:</label>
   <select id="sourceLang">
     <option value="en">English</option>
@@ -43,12 +44,14 @@
   <br><br>
   <button onclick="startVoiceInput()">🎤 Start Speaking</button>
 
+<!--Display Areas-->
   <h3>Original:</h3>
   <textarea id="originalText" rows="4"></textarea>
 
   <h3>Translation:</h3>
   <textarea id="translatedText" rows="4"></textarea>
 
+  <!--start of speech-->
   <script>
     function startVoiceInput() {
       const recognition = new (window.SpeechRecognition || window.webkitSpeechRecognition)();
@@ -59,11 +62,10 @@
       recognition.onresult = async function(event) {
         const spokenText = event.results[0][0].transcript;
         document.getElementById("originalText").value = spokenText;
-        const translated = await translateText(spokenText);
-        document.getElementById("translatedText").value = translated;
-        speakText(translated);
-      };
-
+        
+          // Call command handler
+    await handleCommand(spokenText);
+  };
       recognition.onerror = function(event) {
         alert("Error: " + event.error);
       };
@@ -71,6 +73,30 @@
       recognition.start();
     }
 
+  // 🧠 Command Handler
+async function handleCommand(text) {
+  text = text.toLowerCase();
+
+  if (text.startsWith("translate")) {
+    const translated = await translateText(text.replace("translate", "").trim());
+    document.getElementById("translatedText").value = translated;
+    speakText(translated);
+  } 
+  else if (text.includes("weather")) {
+    // Example: "what's the weather in chennai"
+    const city = text.split("in")[1]?.trim() || "Chennai";
+    const weatherInfo = await getWeather(city);
+    document.getElementById("translatedText").value = weatherInfo;
+    speakText(weatherInfo);
+  } 
+  else {
+    const fallback = "Sorry, I didn't understand the command.";
+    document.getElementById("translatedText").value = fallback;
+    speakText(fallback);
+  }
+}
+
+  //Translate Text-->
     async function translateText(text) {
       const source = document.getElementById("sourceLang").value;
       const target = document.getElementById("targetLang").value;
@@ -80,7 +106,27 @@
       const data = await response.json();
       return data.responseData.translatedText;
     }
+    // 🌦️ Weather API
+async function getWeather(city) {
+  const apiKey = "YOUR_API_KEY"; // Replace with your OpenWeather API key
+  const url = `https://api.openweathermap.org/data/2.5/weather?q=${city}&units=metric&appid=${apiKey}`;
 
+  try {
+    const response = await fetch(url);
+    const data = await response.json();
+
+    if (data.cod !== 200) {
+      return `Couldn't fetch weather for ${city}`;
+    }
+
+    const temp = data.main.temp;
+    const condition = data.weather[0].description;
+    return `Weather in ${city}: ${temp}°C, ${condition}`;
+  } catch (error) {
+    return "Error fetching weather data.";
+  }
+}
+//speak text-->
     function speakText(text) {
       const targetLang = document.getElementById("targetLang").value;
       const utterance = new SpeechSynthesisUtterance(text);
