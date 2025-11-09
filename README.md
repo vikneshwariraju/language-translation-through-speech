@@ -1,2 +1,1 @@
-# talkalike
-language translation with voice
+A simple web‐based application allowing users to speak into the browser, capture that speech, convert it to text, and translate it into another language. Built purely in HTML, the solution is ideal as a lightweight demo for speech translation in the browser. Includes UI screenshots for normal output and error case.
